@@ -2,7 +2,7 @@ mod content;
 
 use std::path::PathBuf;
 
-use gpui_kit::base::{h_flex, v_flex};
+use gpui_kit::base::v_flex;
 use gpui_kit::component::resizable::{ResizableState, h_resizable, resizable_panel};
 use gpui_kit::component::{ActiveTheme, Theme, ThemeRegistry, TitleBar};
 use gpui_kit::*;
@@ -16,7 +16,6 @@ struct ChatMa {
 impl ChatMa {
     fn new(cx: &mut Context<Self>) -> Self {
         Self {
-            // créé une seule fois, jamais dans render()
             resizable_state: cx.new(|_| ResizableState::default()),
         }
     }
