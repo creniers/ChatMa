@@ -1,76 +1,76 @@
-mod content;
+#![recursion_limit = "256"]
+use matrix_sdk::{Client, config::SyncSettings};
+use std::sync::mpsc;
+use tokio::{runtime::Runtime, sync::mpsc as tokio_mpsc};
 
-use std::path::PathBuf;
+use crate::channels::enums::{Command, UiEvent};
 
-use gpui_kit::base::v_flex;
-use gpui_kit::component::resizable::{ResizableState, h_resizable, resizable_panel};
-use gpui_kit::component::{ActiveTheme, Theme, ThemeRegistry, TitleBar};
-use gpui_kit::*;
-
-use crate::content::{main_page, side_panel};
-
-struct ChatMa {
-    resizable_state: Entity<ResizableState>,
-}
-
-impl ChatMa {
-    fn new(cx: &mut Context<Self>) -> Self {
-        Self {
-            resizable_state: cx.new(|_| ResizableState::default()),
-        }
-    }
-
-    fn main_layout(&self) -> impl IntoElement {
-        h_resizable("main-layout")
-            .with_state(&self.resizable_state)
-            .child(resizable_panel().size(px(300.)).child(side_panel()))
-            .child(resizable_panel().child(main_page()))
-    }
-}
-
-impl Render for ChatMa {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .size_full()
-            .child(TitleBar::new().child("ChatMa").bg(cx.theme().background))
-            .child(div().flex_1().min_h_0().w_full().child(self.main_layout()))
-    }
-}
-
-fn load_solarized_theme(cx: &mut App) {
-    let dark_theme_name = SharedString::from("Solarized Light");
-    let light_theme_name = SharedString::from("Solarized Dark");
-
-    if let Err(err) = ThemeRegistry::watch_dir(PathBuf::from("./themes"), cx, move |cx| {
-        let themes = ThemeRegistry::global(cx).themes().clone();
-
-        if let Some(dark_theme) = themes.get(&dark_theme_name).cloned() {
-            Theme::update(cx, |cur| cur.apply_config(&dark_theme))
-        };
-
-        if let Some(light_theme) = themes.get(&light_theme_name).cloned() {
-            Theme::update(cx, |cur| cur.apply_config(&light_theme))
-        }
-    }) {
-        panic!("No theme dir found {}", err);
-    }
-}
+mod channels;
+mod gui;
 
 fn main() {
-    application().with_assets(assets::Assets).run(|cx| {
-        init(cx);
+    let rt = Runtime::new().expect("runtime tokio");
 
-        open_window(TitleBar::window_options(), cx, |window, cx| {
-            window
-                .observe_window_appearance(|window, cx| {
-                    Theme::sync_system_appearance(Some(window), cx);
-                })
-                .detach();
+    let (ui_tx, ui_rx) = mpsc::channel::<UiEvent>();
+    let (cmd_tx, cmd_rx) = tokio_mpsc::unbounded_channel::<Command>();
 
-            load_solarized_theme(cx);
+    rt.spawn(matrix_task(ui_tx, cmd_rx));
 
-            cx.new(|cx| ChatMa::new(cx))
-        })
-        .expect("Failed to open window");
+    gui::applauncher::launch(ui_rx, cmd_tx);
+}
+
+// tâche matrix dummy faite par claude pour la compil
+async fn matrix_task(
+    ui_tx: mpsc::Sender<UiEvent>,
+    mut cmd_rx: tokio_mpsc::UnboundedReceiver<Command>,
+) {
+    let client = Client::builder()
+        .homeserver_url("https://matrix.clement-reniers.fr")
+        .build()
+        .await
+        .unwrap();
+
+    client
+        .matrix_auth()
+        .login_username("user", "password")
+        .send()
+        .await
+        .unwrap();
+    let _ = ui_tx.send(UiEvent::LoggedIn);
+
+    // Handler d'événements : pousse vers la GUI
+    let tx = ui_tx.clone();
+    client.add_event_handler(
+        move |ev: matrix_sdk::ruma::events::room::message::OriginalSyncRoomMessageEvent,
+              room: matrix_sdk::Room| {
+            let tx = tx.clone();
+            async move {
+                let _ = tx.send(UiEvent::NewMessage {
+                    room: room.room_id().to_string(),
+                    sender: ev.sender.to_string(),
+                    body: format!("{:?}", ev.content.msgtype), // à adapter
+                });
+            }
+        },
+    );
+
+    // Sync en tâche séparée, pendant qu'on écoute les commandes
+    let sync_client = client.clone(); // Client est un Arc en interne, clone peu coûteux
+    tokio::spawn(async move {
+        let _ = sync_client.sync(SyncSettings::default()).await;
     });
+
+    while let Some(cmd) = cmd_rx.recv().await {
+        match cmd {
+            Command::SendMessage { room_id, body } => {
+                if let Some(room) = client.get_room(&room_id) {
+                    use matrix_sdk::ruma::events::room::message::RoomMessageEventContent;
+                    if let Err(e) = room.send(RoomMessageEventContent::text_plain(body)).await {
+                        let _ = ui_tx.send(UiEvent::Error(e.to_string()));
+                    }
+                }
+            }
+            Command::Logout => break,
+        }
+    }
 }
