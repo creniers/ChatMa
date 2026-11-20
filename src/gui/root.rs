@@ -38,22 +38,12 @@ impl RootView {
         let login = cx.new(|cx| LoginView::new(window, cx));
 
         let matrix = cx.global::<MatrixReceiver>().0.clone();
-        cx.subscribe_in(
-            &matrix,
-            window,
-            |this, _m, ev: &UiEvent, window, cx| match ev {
-                UiEvent::LoggedIn => {
-                    let chat = cx.new(|cx| ChatMa::new(window, cx));
-                    this.screen = Screen::Chat(chat);
-                }
-                UiEvent::NewMessage {
-                    room: _,
-                    sender: _,
-                    body: _,
-                } => {}
-                UiEvent::Error(_) => {}
-            },
-        )
+        cx.subscribe_in(&matrix, window, |this, _m, ev: &UiEvent, window, cx| {
+            if let UiEvent::LoggedIn = ev {
+                let chat = cx.new(|cx| ChatMa::new(window, cx));
+                this.screen = Screen::Chat(chat);
+            }
+        })
         .detach();
 
         Self {

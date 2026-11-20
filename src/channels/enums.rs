@@ -17,6 +17,7 @@ pub enum Command {
 // Matrix -> GUI
 pub enum UiEvent {
     LoggedIn,
+    ErrorLogin(String),
     NewMessage {
         room: String,
         sender: String,

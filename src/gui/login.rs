@@ -1,16 +1,20 @@
 use gpui_kit::{
-    base::input::InputState,
+    base::{StyledExt, input::InputState},
     component::{ActiveTheme, button::Button},
+    prelude::FluentBuilder,
     *,
 };
 
-use crate::gui::components::text_field;
 use crate::{channels::enums::Command, matrix::sender::MatrixSender};
+use crate::{
+    channels::enums::UiEvent, gui::components::text_field, matrix::receiver::MatrixReceiver,
+};
 
 pub struct LoginView {
     homeserver_url: Entity<InputState>,
     username: Entity<InputState>,
     password: Entity<InputState>,
+    error_message: Option<String>,
 }
 
 impl LoginView {
@@ -22,10 +26,20 @@ impl LoginView {
                 .placeholder("Password")
                 .masked(true)
         });
+
+        let matrix = cx.global::<MatrixReceiver>().0.clone();
+        cx.subscribe_in(&matrix, window, |this, _m, ev: &UiEvent, _window, _cx| {
+            if let UiEvent::Error(e) = ev {
+                this.error_message = Some(e.to_string());
+            }
+        })
+        .detach();
+
         Self {
             homeserver_url,
             username,
             password,
+            error_message: None,
         }
     }
 
@@ -67,5 +81,23 @@ impl Render for LoginView {
                         this.submit(cx);
                     })),
             )
+            .when(self.error_message.is_some(), |this| {
+                this.child(
+                    div()
+                        .border_1()
+                        .border_color(rgb(0xFF0000))
+                        .text_color(rgb(0xFF0000))
+                        .text_center()
+                        .corner_radii(Corners::all(px(10.)))
+                        .child(self.error_message.clone().unwrap_or("".to_string())),
+                )
+            })
+        // .child(
+        //     div()
+        //         .border_1()
+        //         .border_color(rgb(0xFF0000))
+        //         .text_color(rgb(0xFF0000))
+        //         .child(self.error_message.clone().unwrap_or("".to_string())),
+        // )
     }
 }

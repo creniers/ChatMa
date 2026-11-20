@@ -34,7 +34,9 @@ impl Sdk {
                     {
                         Ok(client) => {
                             self.client = Some(client);
-                            let _ = self.tx.send(UiEvent::LoggedIn);
+                            let _ = self
+                                .tx
+                                .send(UiEvent::Error("Chef y a une erreur là".to_string()));
 
                             // Gérer l'auth
                         }
