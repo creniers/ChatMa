@@ -1,6 +1,6 @@
 use gpui_kit::{
     base::{StyledExt, input::InputState},
-    component::{ActiveTheme, button::Button},
+    component::{ActiveTheme, button::Button, marker::MarkerLoadingStyle::Spinner},
     prelude::FluentBuilder,
     *,
 };
@@ -15,6 +15,7 @@ pub struct LoginView {
     username: Entity<InputState>,
     password: Entity<InputState>,
     error_message: Option<String>,
+    connecting: bool,
 }
 
 impl LoginView {
@@ -30,6 +31,7 @@ impl LoginView {
         let matrix = cx.global::<MatrixReceiver>().0.clone();
         cx.subscribe_in(&matrix, window, |this, _m, ev: &UiEvent, _window, _cx| {
             if let UiEvent::Error(e) = ev {
+                this.connecting = false;
                 this.error_message = Some(e.to_string());
             }
         })
@@ -40,10 +42,13 @@ impl LoginView {
             username,
             password,
             error_message: None,
+            connecting: false,
         }
     }
 
     fn submit(&mut self, cx: &mut Context<Self>) {
+        self.connecting = false;
+
         let homeserver_content = self.homeserver_url.read(cx).content();
         let mut homeserver = homeserver_content.text().to_string();
         // if doesn't inclure https://, we add it
@@ -59,7 +64,9 @@ impl LoginView {
             homeserver_url: homeserver,
             username: user,
             password: pass,
-        })
+        });
+
+        self.connecting = true
     }
 }
 
@@ -79,6 +86,9 @@ impl Render for LoginView {
             .child(text_field(&self.password, theme))
             .child(
                 Button::new("Validate")
+                    .when(self.connecting, |this| {
+                        this.icon(gpui_kit::component::spinner::Spinner::new())
+                    })
                     .label("Connect")
                     .on_click(cx.listener(|this, _event, _window, cx| {
                         this.submit(cx);
