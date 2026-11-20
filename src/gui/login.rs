@@ -45,17 +45,20 @@ impl LoginView {
 
     fn submit(&mut self, cx: &mut Context<Self>) {
         let homeserver_content = self.homeserver_url.read(cx).content();
-        let homeserver = homeserver_content.text();
+        let mut homeserver = homeserver_content.text().to_string();
+        // if doesn't inclure https://, we add it
+        if !homeserver.starts_with("https://") {
+            homeserver = format!("https://{}", homeserver)
+        }
         let username_content = self.username.read(cx).content();
-        let user = username_content.text();
+        let user = username_content.text().to_string();
         let pass_content = self.password.read(cx).content();
-        let pass = pass_content.text();
-        let _ = (user, pass, homeserver);
+        let pass = pass_content.text().to_string();
 
         cx.global::<MatrixSender>().send(Command::Connect {
-            homeserver_url: homeserver.to_string(),
-            username: user.to_string(),
-            password: pass.to_string(),
+            homeserver_url: homeserver,
+            username: user,
+            password: pass,
         })
     }
 }
@@ -92,12 +95,5 @@ impl Render for LoginView {
                         .child(self.error_message.clone().unwrap_or("".to_string())),
                 )
             })
-        // .child(
-        //     div()
-        //         .border_1()
-        //         .border_color(rgb(0xFF0000))
-        //         .text_color(rgb(0xFF0000))
-        //         .child(self.error_message.clone().unwrap_or("".to_string())),
-        // )
     }
 }

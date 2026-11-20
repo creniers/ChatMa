@@ -1,5 +1,8 @@
 use crate::channels::enums::{Command, UiEvent};
-use matrix_sdk::Client;
+use matrix_sdk::{
+    Client,
+    ruma::{UserId, user_id},
+};
 use tokio::sync::mpsc;
 
 pub struct Sdk {
@@ -33,10 +36,23 @@ impl Sdk {
                         .await
                     {
                         Ok(client) => {
-                            self.client = Some(client);
-                            let _ = self
-                                .tx
-                                .send(UiEvent::Error("Chef y a une erreur là".to_string()));
+                            self.client = Some(client.clone());
+                            match client
+                                .matrix_auth()
+                                .login_username(username, &password)
+                                .initial_device_display_name("chatma")
+                                .await
+                            {
+                                Ok(_) => {
+                                    let _ = self.tx.send(UiEvent::LoggedIn);
+                                }
+                                Err(e) => {
+                                    let _ = self.tx.send(UiEvent::Error(format!(
+                                        "Erreur de connexion : {}",
+                                        e
+                                    )));
+                                }
+                            };
 
                             // Gérer l'auth
                         }
