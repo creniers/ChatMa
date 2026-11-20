@@ -5,12 +5,7 @@ use gpui_kit::{
 };
 
 use crate::gui::components::text_field;
-
-pub enum LoginEvent {
-    LoggedIn,
-}
-
-impl EventEmitter<LoginEvent> for LoginView {}
+use crate::{channels::enums::Command, matrix::sender::MatrixSender};
 
 pub struct LoginView {
     homeserver_url: Entity<InputState>,
@@ -43,7 +38,11 @@ impl LoginView {
         let pass = pass_content.text();
         let _ = (user, pass, homeserver);
 
-        cx.emit(LoginEvent::LoggedIn);
+        cx.global::<MatrixSender>().send(Command::Connect {
+            homeserver_url: homeserver.to_string(),
+            username: user.to_string(),
+            password: pass.to_string(),
+        })
     }
 }
 
@@ -58,6 +57,7 @@ impl Render for LoginView {
             .justify_center()
             .gap_3()
             .p_4()
+            .child(text_field(&self.homeserver_url, theme))
             .child(text_field(&self.username, theme))
             .child(text_field(&self.password, theme))
             .child(

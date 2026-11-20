@@ -24,7 +24,7 @@ impl ChatMa {
 }
 
 impl Render for ChatMa {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         div().flex_1().min_h_0().w_full().child(self.main_layout())
     }
 }

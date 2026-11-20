@@ -4,9 +4,10 @@ use gpui_kit::{
     *,
 };
 
-use crate::gui::{
-    chat::ChatMa,
-    login::{LoginEvent, LoginView},
+use crate::{
+    channels::enums::UiEvent,
+    gui::{chat::ChatMa, login::LoginView},
+    matrix::receiver::MatrixReceiver,
 };
 
 enum Screen {
@@ -36,14 +37,21 @@ impl RootView {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let login = cx.new(|cx| LoginView::new(window, cx));
 
+        let matrix = cx.global::<MatrixReceiver>().0.clone();
         cx.subscribe_in(
-            &login,
+            &matrix,
             window,
-            |this, login, event, window, cx| match event {
-                LoginEvent::LoggedIn => {
+            |this, _m, ev: &UiEvent, window, cx| match ev {
+                UiEvent::LoggedIn => {
                     let chat = cx.new(|cx| ChatMa::new(window, cx));
                     this.screen = Screen::Chat(chat);
                 }
+                UiEvent::NewMessage {
+                    room: _,
+                    sender: _,
+                    body: _,
+                } => {}
+                UiEvent::Error(_) => {}
             },
         )
         .detach();

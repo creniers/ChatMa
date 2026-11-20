@@ -2,7 +2,15 @@ use matrix_sdk::ruma::OwnedRoomId;
 
 // GUI -> Matrix
 pub enum Command {
-    SendMessage { room_id: OwnedRoomId, body: String },
+    Connect {
+        homeserver_url: String,
+        username: String,
+        password: String,
+    },
+    SendMessage {
+        room_id: OwnedRoomId,
+        body: String,
+    },
     Logout,
 }
 

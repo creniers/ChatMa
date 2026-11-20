@@ -1,19 +1,30 @@
-use std::{path::PathBuf, sync::mpsc::Receiver};
+use std::path::PathBuf;
 
 use gpui_kit::{
     component::{Theme, ThemeRegistry, TitleBar},
     *,
 };
-use tokio::sync::mpsc as tokio_mpsc;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::{
     channels::enums::{Command, UiEvent},
     gui::root::RootView,
+    matrix::{
+        receiver::{MatrixModel, MatrixReceiver},
+        sender::MatrixSender,
+    },
 };
 
-pub fn launch(ui_rx: Receiver<UiEvent>, cmd_tx: tokio_mpsc::UnboundedSender<Command>) {
+pub fn launch(rx: UnboundedReceiver<UiEvent>, tx: UnboundedSender<Command>) {
     application().with_assets(assets::Assets).run(|cx| {
         init(cx);
+
+        // set the tx as global so that every screen can use it
+        cx.set_global(MatrixSender { tx });
+
+        // set the rx as global s.t. every screen can subscribe to it
+        let matrix = cx.new(|cx| MatrixModel::new(rx, cx));
+        cx.set_global(MatrixReceiver(matrix));
 
         open_window(TitleBar::window_options(), cx, |window, cx| {
             window
