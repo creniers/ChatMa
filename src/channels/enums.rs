@@ -1,5 +1,7 @@
 use matrix_sdk::ruma::OwnedRoomId;
 
+use crate::channels::enums_gui::RoomGui;
+
 // GUI -> Matrix
 pub enum Command {
     Connect {
@@ -7,6 +9,7 @@ pub enum Command {
         username: String,
         password: String,
     },
+    GetRooms,
     SendMessage {
         room_id: OwnedRoomId,
         body: String,
@@ -18,6 +21,7 @@ pub enum Command {
 pub enum UiEvent {
     LoggedIn,
     ErrorLogin(String),
+    Rooms(Vec<RoomGui>),
     NewMessage {
         room: String,
         sender: String,

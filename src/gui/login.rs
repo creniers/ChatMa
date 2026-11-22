@@ -1,6 +1,6 @@
 use gpui_kit::{
     base::{StyledExt, input::InputState},
-    component::{ActiveTheme, button::Button, marker::MarkerLoadingStyle::Spinner},
+    component::{ActiveTheme, button::Button},
     prelude::FluentBuilder,
     *,
 };
